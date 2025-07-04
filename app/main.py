@@ -10,13 +10,17 @@ from app.schemas.user import UserCreate
 from app.models.user import RoleEnum
 from app.core.config import settings
 from app.api.events import router as  events_router
-
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.utils.aggregator import aggregate_issue_counts
+from datetime import datetime
 app = FastAPI(
     title="Issues & Insights Tracker",
     version="0.1.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
 )
+
+scheduler = BackgroundScheduler()
 
 
 @app.on_event("startup")
@@ -34,6 +38,14 @@ def on_startup():
             role=RoleEnum.ADMIN
         )
     db.close()
+
+    scheduler.add_job(
+        aggregate_issue_counts,
+        trigger="interval",
+        minutes=30,
+        next_run_time=datetime.now()
+    )
+    scheduler.start()
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
