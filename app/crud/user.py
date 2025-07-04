@@ -21,3 +21,9 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def update_role(self, user: User, new_role: RoleEnum) -> User:
+        user.role = new_role
+        self.db.commit()
+        self.db.refresh(user)
+        return user    

@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     SQLALCHEMY_DATABASE_URL: str
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD: str
 
     class Config:
         env_file = ".env"
