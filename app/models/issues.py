@@ -29,3 +29,8 @@ class Issue(Base):
 
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     reporter = relationship("User")
+    attachments = relationship(
+        "FileAttachment",
+        back_populates="issue",
+        cascade="all, delete-orphan",
+    )

@@ -3,8 +3,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Poetry
-poetry.lock
+
 
 # Virtual environments
 .env

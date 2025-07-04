@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 import enum
+from app.schemas.attachment import AttachmentRead
 
 class SeverityEnum(str, enum.Enum):
     LOW = "LOW"
@@ -31,5 +32,6 @@ class IssueRead(IssueBase):
     created_at: datetime
     updated_at: datetime
     reporter_id: int
+    attachments: list[AttachmentRead] = []
 
     model_config = ConfigDict(from_attributes=True)
