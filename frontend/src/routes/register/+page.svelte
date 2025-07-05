@@ -1,5 +1,9 @@
 <script>
+  import { token, isAuthenticated } from '$lib/stores/auth';
   import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
+  import { onMount } from 'svelte';
+
   let email = '';
   let password = '';
   let error = '';
@@ -25,7 +29,52 @@
       error = e.message;
     }
   }
+
+  async function handleGoogleCredential(credential) {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/google-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: credential })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail || 'Google login failed');
+        return;
+      }
+
+      const data = await res.json();
+      document.cookie = `token=${data.access_token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+      token.set(data.access_token);
+      isAuthenticated.set(true);
+      goto('/');
+    } catch (err) {
+      console.error('Google login failed:', err);
+      alert('Google login failed');
+    }
+  }
+
+  onMount(() => {
+    if (browser && window.google) {
+      window.google.accounts.id.initialize({
+        client_id: `${import.meta.env.VITE_GOOGLE_CLIENT_ID}`,
+        callback: (response) => {
+          handleGoogleCredential(response.credential);
+        },
+      });
+
+      window.google.accounts.id.renderButton(
+        document.getElementById("google-signin"),
+        { theme: "outline", size: "large", width: "100%" }
+      );
+    }
+  });
 </script>
+
+<svelte:head>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</svelte:head>
 
 <main class="max-w-md mx-auto mt-8 p-4">
   <h1 class="text-2xl font-bold mb-4">Register</h1>
@@ -53,8 +102,11 @@
       Register
     </button>
   </form>
+
+  <div class="text-center my-4 text-gray-500">or</div>
+  <div id="google-signin" class="w-full flex justify-center"></div>
+
   <p class="mt-4 text-sm">
     Already have an account? <a href="/login" class="text-blue-500">Login</a>
   </p>
 </main>
-

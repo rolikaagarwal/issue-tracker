@@ -8,7 +8,7 @@
     if (get(isAuthenticated)) {
       goto('/issues');
     } else {
-      goto('/login');
+      goto('/register');
     }
   });
 </script>
