@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# macOS
+.DS_Store
+
+# Node.js
+node_modules/
+npm-debug.log
+
+# VSCode or JetBrains settings (optional)
+.vscode/
+.idea/
+node_modules
+package-lock.json
