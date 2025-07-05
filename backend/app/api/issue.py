@@ -86,8 +86,9 @@ def get_issue(
         raise HTTPException(status_code=403, detail="Not permitted to view this issue")
 
     attachment = attach_repo.get_by_issue_id(issue_id)
-    return IssueRead.model_validate(issue, update={"attachment": attachment})
-
+    data = IssueRead.model_validate(issue).model_dump()
+    data["attachment"] = attachment
+    return IssueRead(**data)
 
 
 

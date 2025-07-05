@@ -56,7 +56,11 @@ def on_startup():
         minutes=30,
         next_run_time=datetime.now()
     )
-    scheduler.start()
+    import os
+
+# Only run scheduler in non-test env
+    if os.getenv("ENV") != "test":
+        scheduler.start()
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(auth_router, prefix="/auth", tags=["auth"])

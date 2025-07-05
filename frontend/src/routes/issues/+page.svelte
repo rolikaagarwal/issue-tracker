@@ -60,20 +60,23 @@
     let res;
 
     if (isEditing) {
-      res = await fetch(`${BASE_URL}/issues/${editingIssueId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${get(token)}`,
-        },
-        body: JSON.stringify({
-          title: newIssue.title,
-          description: newIssue.description,
-          severity: newIssue.severity,
-          status: newIssue.status,
-        }),
-      });
+      // Use the /status endpoint to update only severity & status
+      res = await fetch(
+        `${BASE_URL}/issues/${editingIssueId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${get(token)}`,
+          },
+          body: JSON.stringify({
+            severity: newIssue.severity,
+            status: newIssue.status,
+          }),
+        }
+      );
     } else {
+      // Creating a new issue (title, description, severity, file)
       const form = new FormData();
       form.append("title", newIssue.title);
       form.append("description", newIssue.description);
@@ -199,13 +202,30 @@
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded shadow w-full max-w-md max-h-[90vh] overflow-auto p-6">
         <h2 class="text-xl font-bold mb-4">{editingIssueId ? "Edit" : "Create"} Issue</h2>
-        <input type="text" bind:value={newIssue.title} placeholder="Title" class="w-full p-2 border rounded mb-2" />
-        <textarea bind:value={newIssue.description} placeholder="Description" class="w-full p-2 border rounded mb-2"></textarea>
+        
+        <!-- Title & Description inputs only for create -->
+        {#if !editingIssueId}
+          <input
+            type="text"
+            bind:value={newIssue.title}
+            placeholder="Title"
+            class="w-full p-2 border rounded mb-2"
+          />
+          <textarea
+            bind:value={newIssue.description}
+            placeholder="Description"
+            class="w-full p-2 border rounded mb-2"
+          ></textarea>
+        {/if}
+
+        <!-- Severity selector -->
         <select bind:value={newIssue.severity} class="w-full p-2 border rounded mb-2">
           <option value="LOW">Low</option>
           <option value="MEDIUM">Medium</option>
           <option value="HIGH">High</option>
         </select>
+
+        <!-- Status selector only for MAINTAINER/ADMIN -->
         {#if newIssue.role === "MAINTAINER" || newIssue.role === "ADMIN"}
           <select bind:value={newIssue.status} class="w-full p-2 border rounded mb-4">
             <option value="OPEN">Open</option>
@@ -213,9 +233,9 @@
             <option value="RESOLVED">Resolved</option>
             <option value="CLOSED">Closed</option>
           </select>
-        {:else}
-          <!-- <p class="mb-4"><span class="font-medium">Status:</span> {newIssue.status}</p> -->
         {/if}
+
+        <!-- Attachment preview -->
         {#if newIssue.attachment}
           <div class="mb-4">
             <p class="text-sm text-gray-700">Attached: {newIssue.attachment.filename}</p>
@@ -229,7 +249,11 @@
             <a href={`${BASE_URL}${newIssue.attachment.url}`} target="_blank" download={newIssue.attachment.filename} class="text-blue-500 underline text-sm">Download</a>
           </div>
         {/if}
+
+        <!-- File input -->
         <input type="file" on:change={handleFile} class="w-full mb-4" />
+
+        <!-- Modal actions -->
         <div class="flex justify-end space-x-2">
           <button on:click={() => (showModal = false)} class="text-gray-600 hover:underline">Cancel</button>
           <button on:click={submitIssue} class="bg-green-600 text-white px-4 py-2 rounded shadow">Save</button>
