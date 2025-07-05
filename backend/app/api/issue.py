@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
-
+from app.schemas.attachment import AttachmentRead
 from app.crud.issue import IssueRepository
 from app.crud.attachment import AttachmentRepository
 from app.schemas.issues import IssueCreate, IssueRead, IssueUpdate, SeverityEnum
@@ -19,60 +19,59 @@ def get_issue_repo(db: Session = Depends(get_db)) -> IssueRepository:
 def get_attach_repo(db: Session = Depends(get_db)) -> AttachmentRepository:
     return AttachmentRepository(db)
 
-@router.post(
-    "/create",
-    response_model=IssueRead,
-    status_code=status.HTTP_201_CREATED
-)
+@router.post("/create", response_model=IssueRead, status_code=status.HTTP_201_CREATED)
 async def create_issue(
-    title: str = Form(..., description="Issue title"),
-    description: str = Form(..., description="Issue description (Markdown)"),
-    severity: SeverityEnum = Form(SeverityEnum.LOW, description="Issue severity"),
-    file: Optional[UploadFile] = File(None, description="Optional attachment"),
+    title: str = Form(...),
+    description: str = Form(...),
+    severity: SeverityEnum = Form(SeverityEnum.LOW),
+    file: Optional[UploadFile] = File(None),
     current_user: User = Depends(require_role(RoleEnum.REPORTER, RoleEnum.ADMIN)),
     repo: IssueRepository = Depends(get_issue_repo),
     attach_repo: AttachmentRepository = Depends(get_attach_repo),
 ):
-    
     issue_in = IssueCreate(title=title, description=description, severity=severity)
     issue = repo.create(issue_in, reporter_id=current_user.id)
 
-    await pubsub_instance.publish({
-        "type": "issue_created",
-        "issue": IssueRead.from_orm(issue).model_dump(),
-    })
-
+    attachment = None
     if file:
         path = save_upload_file(file)
-        attach_repo.create_issue_with_attachment( 
-            issue_id=issue.id,
-            filename=file.filename,
-            filepath=path,
-        )
-        repo.db.refresh(issue) 
+        attachment = attach_repo.create_issue_with_attachment(issue.id, file.filename, path)
+        repo.db.refresh(issue)
 
-    return issue
+    issue_data = IssueRead.model_validate(issue)
+    if attachment:
+        issue_data.attachment = AttachmentRead.model_validate(attachment)
 
-@router.get(
-    "/getall",
-    response_model=List[IssueRead]
-)
+    return issue_data
+
+
+@router.get("/getall", response_model=List[IssueRead])
 def list_issues(
     current_user: User = Depends(get_current_user),
     repo: IssueRepository = Depends(get_issue_repo),
+    attach_repo: AttachmentRepository = Depends(get_attach_repo),
 ):
     if current_user.role == RoleEnum.REPORTER:
-        return repo.list_by_reporter(current_user.id)
-    return repo.list_all()
+        issues = repo.list_by_reporter(current_user.id)
+    else:
+        issues = repo.list_all()
 
-@router.get(
-    "/{issue_id}",
-    response_model=IssueRead
-)
+    results = []
+    for issue in issues:
+        attachment = attach_repo.get_by_issue_id(issue.id)
+        issue_data = IssueRead.model_validate(issue)
+        if attachment:
+            issue_data.attachment = AttachmentRead.model_validate(attachment)
+        results.append(issue_data)
+
+    return results
+
+@router.get("/{issue_id}", response_model=IssueRead)
 def get_issue(
     issue_id: int,
     current_user: User = Depends(get_current_user),
     repo: IssueRepository = Depends(get_issue_repo),
+    attach_repo: AttachmentRepository = Depends(get_attach_repo),
 ):
     issue = repo.get(issue_id)
     if not issue:
@@ -81,7 +80,12 @@ def get_issue(
     if current_user.role == RoleEnum.REPORTER and issue.reporter_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not permitted to view this issue")
 
-    return issue
+    attachment = attach_repo.get_by_issue_id(issue_id)
+    return IssueRead.model_validate(issue, update={"attachment": attachment})
+
+
+
+
 
 @router.patch(
     "/{issue_id}/status",

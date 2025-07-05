@@ -26,12 +26,12 @@ class IssueCreate(IssueBase):
 class IssueUpdate(BaseModel):
     status: Optional[StatusEnum]
 
-class IssueRead(IssueBase):
+class IssueRead(BaseModel):
     id: int
-    status: StatusEnum
-    created_at: datetime
-    updated_at: datetime
+    title: str
+    description: str
+    severity: SeverityEnum
     reporter_id: int
-    attachments: list[AttachmentRead] = []
+    attachment: Optional[AttachmentRead] = None  
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = dict(from_attributes=True)

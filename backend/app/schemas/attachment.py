@@ -9,4 +9,5 @@ class AttachmentRead(BaseModel):
 
     @computed_field
     def url(self) -> str:
-        return f"/{self.filepath}"
+        normalized_path = self.filepath.replace("\\", "/")
+        return f"/{normalized_path}"
