@@ -10,6 +10,7 @@ from app.dependencies.auth import get_db, get_current_user, require_role
 from app.models.user import RoleEnum, User
 from app.utils.storage import save_upload_file
 from app.utils import pubsub_instance  
+from app.schemas.issues import IssueReadWithRole
 
 router = APIRouter(tags=["issues"])
 
@@ -45,7 +46,7 @@ async def create_issue(
     return issue_data
 
 
-@router.get("/getall", response_model=List[IssueRead])
+@router.get("/getall", response_model=List[IssueReadWithRole])
 def list_issues(
     current_user: User = Depends(get_current_user),
     repo: IssueRepository = Depends(get_issue_repo),
@@ -56,13 +57,17 @@ def list_issues(
     else:
         issues = repo.list_all()
 
-    results = []
+    results: list[IssueReadWithRole] = []
     for issue in issues:
         attachment = attach_repo.get_by_issue_id(issue.id)
         issue_data = IssueRead.model_validate(issue)
+
         if attachment:
             issue_data.attachment = AttachmentRead.model_validate(attachment)
-        results.append(issue_data)
+
+        data = issue_data.model_dump()
+        data["role"] = current_user.role
+        results.append(IssueReadWithRole.model_validate(data))
 
     return results
 
@@ -101,7 +106,7 @@ async def update_issue_status(
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found")
 
-    updated_issue = repo.update_status(issue, update_in.status)
+    updated_issue = repo.update_status(issue, update_in.status, update_in.severity)
 
     await pubsub_instance.publish({
         "type": "issue_updated",

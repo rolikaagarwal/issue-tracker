@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.issues import Issue, StatusEnum
+from app.models.issues import Issue, StatusEnum, SeverityEnum
 from app.schemas.issues import IssueCreate
 
 class IssueRepository:
@@ -27,8 +27,9 @@ class IssueRepository:
             .all()
         )
 
-    def update_status(self, issue: Issue, new_status: StatusEnum) -> Issue:
+    def update_status(self, issue: Issue, new_status: StatusEnum, new_severity: SeverityEnum) -> Issue:
         issue.status = new_status
+        issue.severity = new_severity
         self.db.commit()
         self.db.refresh(issue)
         return issue
